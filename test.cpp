@@ -225,9 +225,6 @@ int main(int argc, const char** argv)
 
 					//_Pos = img(Rect(CHKRGN(avgPtM.x - 100), CHKRGN(avgPtM.y - 80), 200, 250));
 				}
-					//imshow("1", img);
-				
-//				imshow("123", img_roi);
 
 			imshow("Demo", img);
 
