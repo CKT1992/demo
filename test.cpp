@@ -14,7 +14,7 @@
 #ifndef __SMOOTH_ROI__
 #define __SMOOTH_ROI__
 
-#define LIMIT_SMOOTH_COUNT 7 //³]©w­nsmooth´X­Óframe
+#define LIMIT_SMOOTH_COUNT 7 //設定要smooth幾個frame
 #endif
 
 #define length 512
@@ -31,30 +31,30 @@ Mat img;
 
 int main(int argc, const char** argv)
 {
-	try //¦pªG¨S§ä¨ì½ü¹ø¤£·|·í¾÷
+	try //如果沒找到輪廓不會當機
 	{
 		double fps;
 		char string[10];
 		double times = 0;
 
-		int MRoiX = 0; //ÃBÀYRoi¤¤¤ß (x, )
-		int MRoiY = 0; //ÃBÀYRoi¤¤¤ß ( ,y)
+		int MRoiX = 0; //額頭Roi中心 (x, )
+		int MRoiY = 0; //額頭Roi中心 ( ,y)
 
-		int RRoiX = 0; //¥kÁyRoi¤¤¤ß (x, )
-		int RRoiY = 0; //¥kÁyRoi¤¤¤ß ( ,y)
+		int RRoiX = 0; //右臉Roi中心 (x, )
+		int RRoiY = 0; //右臉Roi中心 ( ,y)
 
-		int LRoiX = 0; //¥ªÁyRoi¤¤¤ß (x, )
-		int LRoiY = 0; //¥ªÁyRoi¤¤¤ß ( ,y)
+		int LRoiX = 0; //左臉Roi中心 (x, )
+		int LRoiY = 0; //左臉Roi中心 ( ,y)
 
 		CvPoint avgPtM;
 
 		VideoCapture cap(0);
 
 		int totalFrameNumber = cap.get(CV_CAP_PROP_FRAME_COUNT);
-		cap.set(CV_CAP_PROP_FRAME_WIDTH, 640); //³]©w¼e
-		cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480); //³]©w°ª
+		cap.set(CV_CAP_PROP_FRAME_WIDTH, 640); //設定寬
+		cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480); //設定高
 
-		// ¸ü¤J¾Ç²ßÀÉ
+		// 載入學習檔
 		frontal_face_detector detector = get_frontal_face_detector();
 		shape_predictor pose_model;
 		deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
@@ -91,10 +91,10 @@ int main(int argc, const char** argv)
 
 				if (_isInit == false)
 				{
-					//µ¹©w¾ã±i¼v¹³
+					//給定整張影像
 					cimg = cv_image<bgr_pixel>(img);
 
-					//°»´ú¤HÁy
+					//偵測人臉
 					std::vector<dlib::rectangle> faces = detector(cimg);
 
 					// Find the pose of each face.
@@ -102,14 +102,14 @@ int main(int argc, const char** argv)
 					for (unsigned short i = 0; i < faces.size(); ++i)
 					{
 						shape = pose_model(cimg, faces[i]);
-						//SHAPE ¥Nªí§ä¨ìªº¤HÁy¦ì¸m¸ê°T
+						//SHAPE 代表找到的人臉位置資訊
 
-						point pt39 = shape.part(39); //¤º²´¨¤
-						point pt42 = shape.part(42); //¤º²´¨¤
-						point pt33 = shape.part(33); //»óÀY
+						point pt39 = shape.part(39); //內眼角
+						point pt42 = shape.part(42); //內眼角
+						point pt33 = shape.part(33); //鼻頭
 
-						int CenterX = (pt42.x() + pt39.x()) ; //¦L°ó
-						int CenterY = (pt42.y() + pt39.y()) ; //¦L°ó
+						int CenterX = (pt42.x() + pt39.x()) ; //印堂
+						int CenterY = (pt42.y() + pt39.y()) ; //印堂
 
 						MRoiX = CenterX - pt33.x();
 						MRoiY = CenterY - pt33.y();
@@ -122,7 +122,7 @@ int main(int argc, const char** argv)
 
 					}
 
-					//------±N _Pos ©ñ¤J¤HÁy¦ì¸m¸ê°T (¥ª¤Wx,y , ¤¤¤ßµ¥)
+					//------將 _Pos 放入人臉位置資訊 (左上x,y , 中心等)
 //					_PPos = img(Rect(CHKRGN(avgPtM.x - 100), CHKRGN(avgPtM.y - 80), 200, 250));
 					_Pos = Rect(CHKRGN(avgPtM.x - 100)+ _Pos.x, CHKRGN(avgPtM.y - 80)+ _Pos.y, 200, 250);
 
@@ -130,8 +130,8 @@ int main(int argc, const char** argv)
 				}
 				else
 				{
-					//-------±N ¾ã±i¼v¹³(img) ³]©w¦bROI(_Pos+?????)ªº½d³ò
-					//-------±N³]©w¦nROIªºimg copy ¨ì roiImg¤º
+					//-------將 整張影像(img) 設定在ROI(_Pos+?????)的範圍
+					//-------將設定好ROI的img copy 到 roiImg內
 
 					//Mat test(_Pos.rows, _Pos.cols, img.type());
 					//int nChannels = _Pos.channels();
@@ -163,19 +163,19 @@ int main(int argc, const char** argv)
 					{
 						shape = pose_model(cimg, faces[i]);
 
-						point pt39 = shape.part(39); //¤º²´¨¤
-						point pt42 = shape.part(42); //¤º²´¨¤
-						point pt33 = shape.part(33); //»óÀY
+						point pt39 = shape.part(39); //內眼角
+						point pt42 = shape.part(42); //內眼角
+						point pt33 = shape.part(33); //鼻頭
 
-						//ÀYÂà¨¤«×§PÂ_
-						point pt2 = shape.part(2); //¥kÁyù¯°©
-						point pt36 = shape.part(36); //¥k¥~²´¨¤
-						point pt14 = shape.part(14); //¥ªÁyù¯°©
-						point pt45 = shape.part(45); //¥ª¥~²´¨¤
-						point pt30 = shape.part(30); //»ó¦y
+						//頭轉角度判斷
+						point pt2 = shape.part(2); //右臉顴骨
+						point pt36 = shape.part(36); //右外眼角
+						point pt14 = shape.part(14); //左臉顴骨
+						point pt45 = shape.part(45); //左外眼角
+						point pt30 = shape.part(30); //鼻尖
 
-						int CenterX = (pt42.x() + pt39.x()) ; //¦L°ó
-						int CenterY = (pt42.y() + pt39.y()) ; //¦L°ó
+						int CenterX = (pt42.x() + pt39.x()) ; //印堂
+						int CenterY = (pt42.y() + pt39.y()) ; //印堂
 
 						MRoiX = CenterX - pt33.x();
 						MRoiY = CenterY - pt33.y();
@@ -213,7 +213,7 @@ int main(int argc, const char** argv)
 						fpsString += string;
 						putText(img, fpsString, Point(5, 20), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255, 255, 255));
 					}
-					//±N _Pos ©ñ¤J¤HÁy¦ì¸m¸ê°T (¥ª¤Wx,y , ¤¤¤ßµ¥)¡A¦ý­n°O±o¦A¦ì¸m¤W°µshift(¤HÁy¦ì¸m¥[¤W _Pos.LeftTop Position)
+					//將 _Pos 放入人臉位置資訊 (左上x,y , 中心等)，但要記得再位置上做shift(人臉位置加上 _Pos.LeftTop Position)
 
 					_Pos = Rect(CHKRGN(avgPtM.x - 100)+_Pos.x, CHKRGN(avgPtM.y - 80)+_Pos.y, 200, 250);
 
