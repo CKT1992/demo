@@ -26,6 +26,17 @@ using namespace std;
 CvPoint SmoothROI(CvPoint2D32f newPt);
 
 #define CHKRGN(pos) pos<0?0:pos
+float CalculateROIAverage(Mat, int);
+void SaveData(void);
+void normalize();
+
+float Origin_g[length * 11 + 10], Origin_r[length * 11 + 10]; //原本長度
+float MoveAverage[length * 11], MoveAverage_r[length * 11]; //移動平均
+							    //float Standard[length];
+float Detrended[length * 11], Detrended_r[length * 11]; //Origin - Average
+
+int frameNumber = 0; //目前影格
+int record = 0;
 
 Mat img;
 
@@ -51,17 +62,16 @@ int main(int argc, const char** argv)
 		VideoCapture cap(0);
 
 		int totalFrameNumber = cap.get(CV_CAP_PROP_FRAME_COUNT);
-		cap.set(CV_CAP_PROP_FRAME_WIDTH, 640); //設定寬
-		cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480); //設定高
+		cap.set(CV_CAP_PROP_FRAME_WIDTH, 640); //設定原始鏡頭寬
+		cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480); //設定原始鏡頭高
 
 		// 載入學習檔
-		frontal_face_detector detector = get_frontal_face_detector();
+		frontal_face_detector detector = get_frontal_face_detecto44144r();
 		shape_predictor pose_model;
 		deserialize("shape_predictor_68_face_landmarks.dat") >> pose_model;
 
 		bool _isInit = false;
-//		Mat _Pos;
-
+		
 		Mat _PPos;
 		Rect _Pos;
 
@@ -73,20 +83,6 @@ int main(int argc, const char** argv)
 
 				cap >> img;
 
-				//Mat img_roi(320, 430, img.type());
-				//int nChannels = img.channels();
-				//int nRows = img.rows;
-				//int nCols = img.cols;
-
-				//for (int j = 60; j < nRows - 170; j++) {
-				//	uchar* frameData = img.ptr<uchar>(j);
-				//	uchar* roiData = img_roi.ptr<uchar>(j);
-				//	for (int i = 220; i < nCols - 220; i++) {
-				//		roiData[nChannels*i + 2] = frameData[nChannels*i + 2];
-				//		roiData[nChannels*i + 1] = frameData[nChannels*i + 1];
-				//		roiData[nChannels*i + 0] = frameData[nChannels*i + 0];
-				//	}
-				//}
 				cv_image<bgr_pixel> cimg;
 
 				if (_isInit == false)
@@ -104,50 +100,38 @@ int main(int argc, const char** argv)
 						shape = pose_model(cimg, faces[i]);
 						//SHAPE 代表找到的人臉位置資訊
 
-						point pt39 = shape.part(39); //內眼角
-						point pt42 = shape.part(42); //內眼角
+						point pt39 = shape.part(39); //右內眼角
+						point pt42 = shape.part(42); //左內眼角
+						point pt36 = shape.part(36); //右外眼角
+						point pt36 = shape.part(45); //左外眼角
+						
+						double EyeL = sqrt((pt42.x()-pt45.x())*(pt42.x()-pt45.x())+(pt42.y()-pt45.y())*(pt42.y()-pt45.y())); //左眼寬
+						double EyeR = sqrt((pt36.x()-pt39.x())*(pt36.x()-pt39.x())+(pt36.y()-pt39.y())*(pt36.y()-pt39.y())); //右眼寬
+						double EyeAVG = (EyeL + EyeR) /2; //眼睛寬度
+						
+						point pt27 = shape.part(27); //鼻樑
 						point pt33 = shape.part(33); //鼻頭
 
-						int CenterX = (pt42.x() + pt39.x()) ; //印堂
-						int CenterY = (pt42.y() + pt39.y()) ; //印堂
-
-						MRoiX = CenterX - pt33.x();
-						MRoiY = CenterY - pt33.y();
-
+						double Nose = sqrt((pt27.x()-pt33.x())*(pt37.x()-pt33.x())+(pt27.y()-pt33.y())*(pt27.y()-pt33.y())); //鼻子長
+						
+						double CenterX = ((pt42.x() + pt39.x())/2 ; //印堂x點
+						double CenterY = ((pt42.y() + pt39.y())/2 ; //印堂y點
+							       
 						//===========
-						CvPoint2D32f newPtM = Point(MRoiX, MRoiY);
+						CvPoint2D32f newPtM = Point(CenterX, CenterY);
 						avgPtM = SmoothROI(newPtM);
 
 						if (avgPtM.x == 0 && avgPtM.y == 0) continue;
-
 					}
 
-					//------將 _Pos 放入人臉位置資訊 (左上x,y , 中心等)
-//					_PPos = img(Rect(CHKRGN(avgPtM.x - 100), CHKRGN(avgPtM.y - 80), 200, 250));
-					_Pos = Rect(CHKRGN(avgPtM.x - 100)+ _Pos.x, CHKRGN(avgPtM.y - 80)+ _Pos.y, 200, 250);
+					//將 _Pos 放入人臉位置資訊 (左上x,y , 中心)
+					_Pos = Rect(CHKRGN(avgPtM.x - (EyeAVG)*3.5)+ _Pos.x, CHKRGN(avgPtM.y - Nose*2.5)+ _Pos.y, EyeAVG*7, Nose*5);
 
 					_isInit = true;
 				}
 				else
 				{
-					//-------將 整張影像(img) 設定在ROI(_Pos+?????)的範圍
-					//-------將設定好ROI的img copy 到 roiImg內
-
-					//Mat test(_Pos.rows, _Pos.cols, img.type());
-					//int nChannels = _Pos.channels();
-					//int nRows = _Pos.rows;
-					//int nCols = _Pos.cols;
-
-					//for (int j = 0; j < nRows; j++) {
-					//	uchar* srcData = _Pos.ptr<uchar>(j);
-					//	uchar* dstData = test.ptr<uchar>(j);
-					//	for (int i = 0; i < nCols; i++) {
-					//		*dstData++ = *srcData++;
-					//	}
-					//}
-
 					img = img(_Pos);
-
 					Mat roiImg;
 
 					img.copyTo(roiImg);
@@ -163,46 +147,67 @@ int main(int argc, const char** argv)
 					{
 						shape = pose_model(cimg, faces[i]);
 
-						point pt39 = shape.part(39); //內眼角
-						point pt42 = shape.part(42); //內眼角
+						point pt39 = shape.part(39); //右內眼角
+						point pt42 = shape.part(42); //左內眼角
+						point pt36 = shape.part(36); //右外眼角
+						point pt36 = shape.part(45); //左外眼角
+						
+						double EyeL = sqrt((pt42.x()-pt45.x())*(pt42.x()-pt45.x())+(pt42.y()-pt45.y())*(pt42.y()-pt45.y())); //左眼寬
+						double EyeR = sqrt((pt36.x()-pt39.x())*(pt36.x()-pt39.x())+(pt36.y()-pt39.y())*(pt36.y()-pt39.y())); //右眼寬
+						double EyeAVG = (EyeL + EyeR) /2; //眼睛寬度
+						
+						point pt27 = shape.part(27); //鼻樑
 						point pt33 = shape.part(33); //鼻頭
 
-						//頭轉角度判斷
+						double Nose = sqrt((pt27.x()-pt33.x())*(pt37.x()-pt33.x())+(pt27.y()-pt33.y())*(pt27.y()-pt33.y())); //鼻子長
+						
+						double CenterX = ((pt42.x() + pt39.x())/2 ; //印堂x點
+						double CenterY = ((pt42.y() + pt39.y())/2 ; //印堂y點
+						
 						point pt2 = shape.part(2); //右臉顴骨
-						point pt36 = shape.part(36); //右外眼角
 						point pt14 = shape.part(14); //左臉顴骨
-						point pt45 = shape.part(45); //左外眼角
 						point pt30 = shape.part(30); //鼻尖
-
-						int CenterX = (pt42.x() + pt39.x()) ; //印堂
-						int CenterY = (pt42.y() + pt39.y()) ; //印堂
-
-						MRoiX = CenterX - pt33.x();
-						MRoiY = CenterY - pt33.y();
-
+						
+						double FaceR = sqrt((pt2.x()-pt30.x())*(pt2.x()-pt30.x())+(pt2.y()-pt30.y())*(pt2.y()-pt30.y()));//右臉寬度
+						double FaceL = sqrt((pt30.x()-pt14.x())*(pt30.x()-pt14.x())+(pt30.y()-pt14.y())*(pt30.y()-pt14.y()));//左臉寬度							  
+								  
 						//===========
-						CvPoint2D32f newPtM = Point(MRoiX, MRoiY);
+						CvPoint2D32f newPtM = Point(CenterX, CenterY);
 						avgPtM = SmoothROI(newPtM);
 
 						if (avgPtM.x == 0 && avgPtM.y == 0) continue;
 
-						if (pt14.x() - pt30.x() <= 40)
+						if (FaceL <= EyeAVG*3)
 						{
-							CvPoint2D32f newPtR = Point(RRoiX, RRoiY);
-							CvPoint avgPtR = SmoothROI(newPtR);
-							Rect R_region_of_interest = Rect(CHKRGN(avgPtR.x - 5), CHKRGN(avgPtR.y - 5), 10, 10);
+							RRoiX = pt36.x();
+							RRoiY = pt33.y();
+							Rect R_region_of_interest = Rect(RRoiX-5, RRoiY-5, 10, 10);
+							for()//抓資料
+							{
+								
+							}
 							cv::rectangle(img, R_region_of_interest, Scalar(0, 255, 0), 1, 8, 0);
 						}
-						else if (pt30.x() - pt2.x() <= 40)
+						else if (FaceL <= EyeAVG*3)
 						{
-							CvPoint2D32f newPtL = Point(LRoiX, LRoiY + 70);
-							CvPoint avgPtL = SmoothROI(newPtL);
-							Rect L_region_of_interest = Rect(CHKRGN(avgPtL.x - 5), CHKRGN(avgPtL.y - 5), 10, 10);
+							RRoiX = pt45.x();
+							RRoiY = pt33.y();
+							Rect L_region_of_interest = Rect(RRoiX-5, RRoiY-5, 10, 10);
+							for()//抓資料
+							{
+								
+							}
 							cv::rectangle(img, L_region_of_interest, Scalar(0, 255, 0), 1, 8, 0);
 						}
 						else
 						{
+							MRoiX = Nose; //中間ROI中心x
+							MRoiY = CenterY - (Nose/2); //中間ROI中心y
 							Rect region_of_interest = Rect(CHKRGN(avgPtM.x - 5), CHKRGN(avgPtM.y - 5), 10, 10);
+							for()//抓資料
+							{
+								
+							}
 							cv::rectangle(img, region_of_interest, Scalar(0, 255, 0), 1, 8, 0);
 						}
 
@@ -229,8 +234,6 @@ int main(int argc, const char** argv)
 			char c = (char)waitKey(10);
 			if (c == 27)
 				break;
-
-			fix(c, paused);
 		}
 	}
 
@@ -256,4 +259,58 @@ CvPoint SmoothROI(CvPoint2D32f newPt)
 	avgPt.x = (int)(_sumPt.x / LIMIT_SMOOTH_COUNT);
 	avgPt.y = (int)(_sumPt.y / LIMIT_SMOOTH_COUNT);
 	return avgPt;
+}
+
+oid SaveData(void)
+{
+	fstream  dataFile;
+	//開啟.txt檔
+	//記錄G
+	dataFile.open("data_g.txt", ios::app);
+	if (dataFile)
+		for (int i = 0; i < frameNumber - 1; i++)
+		{
+			if (i < length * 11)
+				dataFile << Origin_g[i] << "\t" << MoveAverage[i] << "\t" << Detrended[i] << "\n";
+			else
+				dataFile << Origin_g[i] << "\n";
+		}
+	dataFile.close();
+}
+								  
+
+float CalculateROIAverage(Mat roi, int channel)
+{
+	float avg = 0;
+
+	if (roi.empty()) return 0;
+	try
+	{
+		for (int x = 0; x < 10; x++)
+			for (int y = 0; y < 10; y++)
+				avg += (int)roi.at<Vec3b>(x, y)[channel];
+		avg /= 100;
+
+		return avg;
+	}
+	catch (exception& e)
+	{
+		cout << "Calculate Fail" << endl;
+	}
+}
+								  
+void normalize(void)
+{
+	float average = 0, sd = 0;
+	for (int i = 0; i < length * 2; i++)
+		average += Detrended[i];
+	average /= length * 2;
+
+	for (int i = 0; i < length * 2; i++)
+		sd += pow(Detrended[i] - average, 2);
+	sd /= (length * 2 - 1);
+	sd = sqrt(sd);
+
+	for (int i = 0; i < length * 2; i++)
+		Detrended[i] = (Detrended[i] - average) / sd;
 }
