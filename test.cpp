@@ -17,7 +17,7 @@
 #define LIMIT_SMOOTH_COUNT 7 //設定要smooth幾個frame
 #endif
 
-#define length 512
+#define length 128
 
 using namespace dlib;
 using namespace cv;
