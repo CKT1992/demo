@@ -103,7 +103,7 @@ int main(int argc, const char** argv)
 						point pt39 = shape.part(39); //右內眼角
 						point pt42 = shape.part(42); //左內眼角
 						point pt36 = shape.part(36); //右外眼角
-						point pt36 = shape.part(45); //左外眼角
+						point pt45 = shape.part(45); //左外眼角
 						
 						double EyeL = sqrt((pt42.x()-pt45.x())*(pt42.x()-pt45.x())+(pt42.y()-pt45.y())*(pt42.y()-pt45.y())); //左眼寬
 						double EyeR = sqrt((pt36.x()-pt39.x())*(pt36.x()-pt39.x())+(pt36.y()-pt39.y())*(pt36.y()-pt39.y())); //右眼寬
@@ -150,7 +150,7 @@ int main(int argc, const char** argv)
 						point pt39 = shape.part(39); //右內眼角
 						point pt42 = shape.part(42); //左內眼角
 						point pt36 = shape.part(36); //右外眼角
-						point pt36 = shape.part(45); //左外眼角
+						point pt45 = shape.part(45); //左外眼角
 						
 						double EyeL = sqrt((pt42.x()-pt45.x())*(pt42.x()-pt45.x())+(pt42.y()-pt45.y())*(pt42.y()-pt45.y())); //左眼寬
 						double EyeR = sqrt((pt36.x()-pt39.x())*(pt36.x()-pt39.x())+(pt36.y()-pt39.y())*(pt36.y()-pt39.y())); //右眼寬
